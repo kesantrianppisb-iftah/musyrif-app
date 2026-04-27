@@ -13,11 +13,12 @@ const FileText = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 const CheckCircle = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
 const XCircle = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
 const Sparkles = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>;
+const ClipboardList = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>;
 
 // --- SUPABASE INITIALIZATION ---
 // GANTI KEDUA STRING DI BAWAH INI DENGAN URL DAN ANON KEY SUPABASE ANDA!
-const supabaseUrl = 'https://upsgavsszhjhbfjbcuxs.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwc2dhdnNzemhqaGJmamJjdXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMTE0MzEsImV4cCI6MjA5Mjc4NzQzMX0.JvVihBjcN5j-0ujZXj4YNJazTNHYgRPILaQVowMTz_U';
+const supabaseUrl = 'https://XXXXXXXXXXXXXXXX.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
 
 let supabase = null;
 
@@ -66,12 +67,14 @@ export default function App() {
   const [isSupabaseLoaded, setIsSupabaseLoaded] = useState(false);
   const [view, setView] = useState('landing');
   const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [adminTab, setAdminTab] = useState('musyrif'); // musyrif, tasks, broadcasts, reports, admins
   
   // Login State
   const [loggedInRole, setLoggedInRole] = useState(null); 
-  const [loggedInMusyrif, setLoggedInMusyrif] = useState(null);
+  const [loggedInUser, setLoggedInUser] = useState(null); // Bisa admin atau musyrif
   
   // Data State
+  const [admins, setAdmins] = useState([]);
   const [musyrifs, setMusyrifs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [reports, setReports] = useState([]);
@@ -84,7 +87,7 @@ export default function App() {
   const [pinInput, setPinInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // --- MEMUAT SUPABASE VIA CDN (Menghindari error bundler) ---
+  // --- MEMUAT SUPABASE VIA CDN (Menghindari error bundler pratinjau) ---
   useEffect(() => {
     if (document.getElementById('supabase-script')) {
       if (window.supabase && !isSupabaseLoaded) {
@@ -104,18 +107,19 @@ export default function App() {
     document.head.appendChild(script);
   }, [isSupabaseLoaded]);
 
-
   // --- FETCH DATA FROM SUPABASE ---
   const fetchData = async () => {
     if (!supabase) return;
     try {
-      const [m, t, r, b] = await Promise.all([
+      const [a, m, t, r, b] = await Promise.all([
+        supabase.from('admins').select('*').order('name'),
         supabase.from('musyrifs').select('*').order('name'),
         supabase.from('tasks').select('*').order('createdAt'),
         supabase.from('reports').select('*'),
         supabase.from('broadcasts').select('*').order('timestamp', { ascending: false })
       ]);
 
+      if (a.data) setAdmins(a.data);
       if (m.data) setMusyrifs(m.data);
       if (t.data) setTasks(t.data);
       if (r.data) setReports(r.data);
@@ -139,9 +143,15 @@ export default function App() {
     setLoginError('');
 
     if (loginModal.type === 'admin') {
-      if (pinInput === '123456') { 
+      const matchedAdmin = admins.find(a => a.pin === pinInput);
+      // Fallback jika belum ada data admin sama sekali di database (mencegah terkunci)
+      const isFallbackAdmin = admins.length === 0 && pinInput === '123456';
+
+      if (matchedAdmin || isFallbackAdmin) { 
         setLoggedInRole('admin');
+        setLoggedInUser(matchedAdmin || { name: 'Admin Utama', pin: '123456' });
         setActiveTab('admin');
+        setAdminTab('musyrif');
         setLoginModal({ isOpen: false, type: '', musyrifId: null });
       } else {
         setLoginError('PIN Admin salah!');
@@ -150,7 +160,7 @@ export default function App() {
       const selectedMusyrif = musyrifs.find(m => m.id === loginModal.musyrifId);
       if (selectedMusyrif && selectedMusyrif.pin === pinInput) {
         setLoggedInRole('musyrif');
-        setLoggedInMusyrif(selectedMusyrif);
+        setLoggedInUser(selectedMusyrif);
         setActiveTab('musyrif');
         setLoginModal({ isOpen: false, type: '', musyrifId: null });
       } else {
@@ -162,7 +172,7 @@ export default function App() {
 
   const handleLogout = () => {
     setLoggedInRole(null);
-    setLoggedInMusyrif(null);
+    setLoggedInUser(null);
     setActiveTab('dashboard');
   };
 
@@ -171,7 +181,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-4">
         <CheckSquare className="text-green-600 w-12 h-12 mb-4 animate-bounce" />
-        <div className="text-green-800 font-bold text-xl">Memuat Database Supabase...</div>
+        <div className="text-green-800 font-bold text-xl">Memuat Database...</div>
       </div>
     );
   }
@@ -217,37 +227,74 @@ export default function App() {
               </button>
             </li>
             
-            <li className="pt-4 pb-2">
-              <span className="px-4 text-xs font-semibold text-green-300 uppercase tracking-wider">Pilihan Musyrif</span>
-            </li>
-            
-            {isLoadingData ? (
-                <div className="px-4 text-sm text-green-400">Memuat data...</div>
-            ) : musyrifs.map(m => (
-              <li key={m.id}>
-                <button 
-                  onClick={() => {
-                    if (loggedInRole === 'musyrif' && loggedInMusyrif?.id === m.id) {
-                      setActiveTab('musyrif');
-                    } else {
-                      setLoginModal({ isOpen: true, type: 'musyrif', musyrifId: m.id });
-                    }
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors text-left ${loggedInMusyrif?.id === m.id ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}
-                >
-                  <Users className="w-4 h-4 opacity-70" />
-                  <span className="truncate">{m.name}</span>
-                </button>
-              </li>
-            ))}
+            {/* JIKA LOGIN SEBAGAI ADMIN, TAMPILKAN PANEL ADMIN DI SINI */}
+            {loggedInRole === 'admin' ? (
+              <>
+                <li className="pt-4 pb-2">
+                  <span className="px-4 text-xs font-semibold text-green-300 uppercase tracking-wider">Panel Admin</span>
+                </li>
+                <li>
+                  <button onClick={() => { setActiveTab('admin'); setAdminTab('musyrif'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-colors text-left ${adminTab === 'musyrif' ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}>
+                    <Users className="w-4 h-4 opacity-80" /><span>Kelola Musyrif</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => { setActiveTab('admin'); setAdminTab('tasks'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-colors text-left ${adminTab === 'tasks' ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}>
+                    <ClipboardList className="w-4 h-4 opacity-80" /><span>Kelola Tugas</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => { setActiveTab('admin'); setAdminTab('broadcasts'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-colors text-left ${adminTab === 'broadcasts' ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}>
+                    <Bell className="w-4 h-4 opacity-80" /><span>Broadcast Pesan</span>
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => { setActiveTab('admin'); setAdminTab('reports'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-colors text-left ${adminTab === 'reports' ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}>
+                    <FileText className="w-4 h-4 opacity-80" /><span>Rekap Laporan</span>
+                  </button>
+                </li>
+                <li className="pt-2">
+                  <button onClick={() => { setActiveTab('admin'); setAdminTab('admins'); setIsSidebarOpen(false); }} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-colors text-left ${adminTab === 'admins' ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}>
+                    <Shield className="w-4 h-4 opacity-80" /><span>Kelola Admin</span>
+                  </button>
+                </li>
+              </>
+            ) : (
+              // JIKA BELUM LOGIN ATAU LOGIN SEBAGAI MUSYRIF, TAMPILKAN DAFTAR MUSYRIF
+              <>
+                <li className="pt-4 pb-2">
+                  <span className="px-4 text-xs font-semibold text-green-300 uppercase tracking-wider">Pilihan Musyrif</span>
+                </li>
+                
+                {isLoadingData ? (
+                    <div className="px-4 text-sm text-green-400">Memuat data...</div>
+                ) : musyrifs.map(m => (
+                  <li key={m.id}>
+                    <button 
+                      onClick={() => {
+                        if (loggedInRole === 'musyrif' && loggedInUser?.id === m.id) {
+                          setActiveTab('musyrif');
+                        } else {
+                          setLoginModal({ isOpen: true, type: 'musyrif', musyrifId: m.id });
+                        }
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors text-left ${loggedInUser?.id === m.id ? 'bg-green-600 border border-green-400' : 'hover:bg-green-700'}`}
+                    >
+                      <Users className="w-4 h-4 opacity-70" />
+                      <span className="truncate">{m.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </>
+            )}
           </ul>
         </div>
         
         <div className="p-4 border-t border-green-700">
           {loggedInRole ? (
             <div className="space-y-2">
-              <div className="text-sm text-green-200 px-2">Masuk sebagai: <br/><strong className="text-white">{loggedInRole === 'admin' ? 'Administrator' : loggedInMusyrif?.name}</strong></div>
+              <div className="text-sm text-green-200 px-2">Masuk sebagai: <br/><strong className="text-white">{loggedInUser?.name}</strong></div>
               <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
                 <LogOut className="w-4 h-4" />
                 <span>Keluar</span>
@@ -286,8 +333,8 @@ export default function App() {
         {/* PAGE CONTENT */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 md:p-8">
           {activeTab === 'dashboard' && <DashboardView reports={reports} musyrifs={musyrifs} broadcasts={broadcasts} />}
-          {activeTab === 'admin' && loggedInRole === 'admin' && <AdminView tasks={tasks} musyrifs={musyrifs} reports={reports} broadcasts={broadcasts} refreshData={fetchData} />}
-          {activeTab === 'musyrif' && loggedInRole === 'musyrif' && <MusyrifView tasks={tasks} musyrif={loggedInMusyrif} reports={reports} refreshData={fetchData} />}
+          {activeTab === 'admin' && loggedInRole === 'admin' && <AdminView activeAdminTab={adminTab} tasks={tasks} musyrifs={musyrifs} reports={reports} broadcasts={broadcasts} admins={admins} refreshData={fetchData} />}
+          {activeTab === 'musyrif' && loggedInRole === 'musyrif' && <MusyrifView tasks={tasks} musyrif={loggedInUser} reports={reports} refreshData={fetchData} />}
         </main>
       </div>
 
@@ -304,9 +351,9 @@ export default function App() {
               </button>
             </div>
             
-            {loginModal.type === 'admin' && (
+            {loginModal.type === 'admin' && admins.length === 0 && (
               <div className="mb-4 text-sm text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
-                PIN Default Admin: <strong>123456</strong>
+                Data admin kosong. PIN Darurat: <strong>123456</strong>
               </div>
             )}
 
@@ -426,34 +473,28 @@ function DashboardView({ reports, musyrifs, broadcasts }) {
 // ==========================================
 // ADMIN VIEW
 // ==========================================
-function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
-  const [adminTab, setAdminTab] = useState('musyrif'); 
+function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admins, refreshData }) {
   
   const [newMusyrif, setNewMusyrif] = useState({ name: '', pin: '' });
   const [newTask, setNewTask] = useState({ title: '', description: '' });
   const [newBroadcast, setNewBroadcast] = useState({ title: '', message: '', category: 'Informasi' });
+  const [newAdmin, setNewAdmin] = useState({ name: '', pin: '' });
 
   // AI States
   const [aiTopic, setAiTopic] = useState('');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
-  // Data Actions (Supabase)
+  // --- ACTIONS ---
   const handleAddMusyrif = async (e) => {
     e.preventDefault();
     if (!newMusyrif.name || !newMusyrif.pin) return;
-    await supabase.from('musyrifs').insert([{ 
-      name: newMusyrif.name, 
-      pin: newMusyrif.pin 
-    }]);
+    await supabase.from('musyrifs').insert([{ name: newMusyrif.name, pin: newMusyrif.pin }]);
     setNewMusyrif({ name: '', pin: '' });
     refreshData();
   };
 
   const handleApprovePin = async (id, newPin) => {
-    await supabase.from('musyrifs').update({ 
-      pin: newPin, 
-      pinChangeRequest: null 
-    }).eq('id', id);
+    await supabase.from('musyrifs').update({ pin: newPin, pinChangeRequest: null }).eq('id', id);
     refreshData();
   };
 
@@ -465,12 +506,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTask.title) return;
-    await supabase.from('tasks').insert([{ 
-      title: newTask.title, 
-      description: newTask.description, 
-      isActive: true, 
-      createdAt: Date.now() 
-    }]);
+    await supabase.from('tasks').insert([{ title: newTask.title, description: newTask.description, isActive: true, createdAt: Date.now() }]);
     setNewTask({ title: '', description: '' });
     refreshData();
   };
@@ -483,10 +519,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
   const handleAddBroadcast = async (e) => {
     e.preventDefault();
     if (!newBroadcast.title || !newBroadcast.message) return;
-    await supabase.from('broadcasts').insert([{ 
-      ...newBroadcast, 
-      timestamp: Date.now() 
-    }]);
+    await supabase.from('broadcasts').insert([{ ...newBroadcast, timestamp: Date.now() }]);
     setNewBroadcast({ title: '', message: '', category: 'Informasi' });
     refreshData();
   };
@@ -495,6 +528,23 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
     await supabase.from('broadcasts').delete().eq('id', id);
     refreshData();
   }
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    if (!newAdmin.name || !newAdmin.pin) return;
+    await supabase.from('admins').insert([{ name: newAdmin.name, pin: newAdmin.pin }]);
+    setNewAdmin({ name: '', pin: '' });
+    refreshData();
+  };
+
+  const handleDeleteAdmin = async (id) => {
+    if (admins.length <= 1) {
+      alert("Tidak dapat menghapus admin ini. Harus ada minimal 1 admin yang tersisa!");
+      return;
+    }
+    await supabase.from('admins').delete().eq('id', id);
+    refreshData();
+  };
 
   const handleGenerateBroadcast = async () => {
     if (!aiTopic) return;
@@ -511,7 +561,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
     setIsGeneratingAi(false);
   };
 
-  // Export to CSV for Google Spreadsheet
+  // Export to CSV
   const exportToCSV = () => {
     let csvContent = "Tanggal,Nama Musyrif,Tugas Selesai,Total Tugas,Persentase,Predikat\n";
     const sortedReports = [...reports].sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -534,34 +584,15 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-          <Shield className="mr-2 text-green-700"/> Panel Administrator
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center capitalize">
+          <Shield className="mr-2 text-green-700"/> Menu: {activeAdminTab.replace('_', ' ')}
         </h2>
       </div>
 
-      {/* ADMIN TABS */}
-      <div className="flex space-x-2 border-b border-gray-200 mb-6 overflow-x-auto pb-2">
-        {['musyrif', 'tasks', 'broadcasts', 'reports'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setAdminTab(tab)}
-            className={`px-4 py-2 font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              adminTab === tab ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {tab === 'musyrif' && 'Kelola Musyrif'}
-            {tab === 'tasks' && 'Kelola Tugas'}
-            {tab === 'broadcasts' && 'Broadcast Pesan'}
-            {tab === 'reports' && 'Rekap Laporan'}
-          </button>
-        ))}
-      </div>
-
-      {/* TAB CONTENT */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         
         {/* TAB: MUSYRIF */}
-        {adminTab === 'musyrif' && (
+        {activeAdminTab === 'musyrif' && (
           <div className="space-y-6">
             <form onSubmit={handleAddMusyrif} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4 items-end">
               <div className="flex-1 w-full">
@@ -611,7 +642,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
         )}
 
         {/* TAB: TASKS */}
-        {adminTab === 'tasks' && (
+        {activeAdminTab === 'tasks' && (
           <div className="space-y-6">
             <form onSubmit={handleAddTask} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4 items-start md:items-end">
               <div className="flex-1 w-full">
@@ -641,7 +672,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
         )}
 
         {/* TAB: BROADCAST */}
-        {adminTab === 'broadcasts' && (
+        {activeAdminTab === 'broadcasts' && (
           <div className="space-y-6">
              <form onSubmit={handleAddBroadcast} className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4">
                <div className="flex gap-4 flex-col md:flex-row">
@@ -661,7 +692,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
 
                {/* AI Assistant Section */}
                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                 <label className="block text-sm font-semibold text-indigo-800 mb-2 flex items-center">
+                 <label className="flex text-sm font-semibold text-indigo-800 mb-2 items-center">
                    <Sparkles className="w-4 h-4 mr-1"/> Asisten AI Pembuat Draft Pesan
                  </label>
                  <div className="flex gap-2 flex-col sm:flex-row">
@@ -709,7 +740,7 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
         )}
 
         {/* TAB: REPORTS */}
-        {adminTab === 'reports' && (
+        {activeAdminTab === 'reports' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center bg-green-50 p-4 rounded-lg border border-green-100">
               <div>
@@ -748,6 +779,51 @@ function AdminView({ tasks, musyrifs, reports, broadcasts, refreshData }) {
                     </tr>
                   ))}
                   {reports.length === 0 && <tr><td colSpan="5" className="p-4 text-center text-gray-500">Belum ada data laporan.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: ADMINS (BARU) */}
+        {activeAdminTab === 'admins' && (
+          <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">Admin memiliki akses penuh ke panel ini. Hati-hati dalam memberikan akses PIN Admin.</p>
+            </div>
+            
+            <form onSubmit={handleAddAdmin} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1 w-full">
+                <label className="block text-sm text-gray-600 mb-1">Nama Admin</label>
+                <input type="text" required value={newAdmin.name} onChange={(e) => setNewAdmin({...newAdmin, name: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
+              </div>
+              <div className="w-full md:w-48">
+                <label className="block text-sm text-gray-600 mb-1">PIN Rahasia</label>
+                <input type="text" required value={newAdmin.pin} onChange={(e) => setNewAdmin({...newAdmin, pin: e.target.value})} className="w-full px-3 py-2 border rounded-md" />
+              </div>
+              <button type="submit" className="w-full md:w-auto px-6 py-2 bg-gray-800 text-white font-medium rounded-md hover:bg-gray-900">Tambah Admin</button>
+            </form>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-3">Nama Admin</th>
+                    <th className="p-3">PIN Akses</th>
+                    <th className="p-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {admins.map(a => (
+                    <tr key={a.id}>
+                      <td className="p-3 font-medium flex items-center"><Shield className="w-4 h-4 mr-2 text-gray-400"/> {a.name}</td>
+                      <td className="p-3 font-mono text-gray-600">{a.pin}</td>
+                      <td className="p-3 text-right">
+                        <button onClick={() => handleDeleteAdmin(a.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Hapus</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {admins.length === 0 && <tr><td colSpan="3" className="p-3 text-center text-gray-500">Data kosong</td></tr>}
                 </tbody>
               </table>
             </div>
