@@ -17,8 +17,8 @@ const ClipboardList = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox
 
 // --- SUPABASE INITIALIZATION ---
 // GANTI KEDUA STRING DI BAWAH INI DENGAN URL DAN ANON KEY SUPABASE ANDA!
-const supabaseUrl = 'https://XXXXXXXXXXXXXXXX.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+const supabaseUrl = 'https://upsgavsszhjhbfjbcuxs.supabase.co'; // TODO: GANTI DENGAN PROJECT URL SUPABASE ANDA
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwc2dhdnNzemhqaGJmamJjdXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMTE0MzEsImV4cCI6MjA5Mjc4NzQzMX0.JvVihBjcN5j-0ujZXj4YNJazTNHYgRPILaQVowMTz_U'; // TODO: GANTI DENGAN ANON/PUBLIC KEY SUPABASE ANDA
 
 let supabase = null;
 
@@ -480,6 +480,9 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
   const [newBroadcast, setNewBroadcast] = useState({ title: '', message: '', category: 'Informasi' });
   const [newAdmin, setNewAdmin] = useState({ name: '', pin: '' });
 
+  // Tambahkan state ini untuk menangkap error
+  const [actionError, setActionError] = useState('');
+
   // AI States
   const [aiTopic, setAiTopic] = useState('');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
@@ -487,62 +490,80 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
   // --- ACTIONS ---
   const handleAddMusyrif = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!newMusyrif.name || !newMusyrif.pin) return;
-    await supabase.from('musyrifs').insert([{ name: newMusyrif.name, pin: newMusyrif.pin }]);
+    const { error } = await supabase.from('musyrifs').insert([{ name: newMusyrif.name, pin: newMusyrif.pin }]);
+    if (error) { setActionError('Gagal tambah Musyrif: ' + error.message); return; }
     setNewMusyrif({ name: '', pin: '' });
     refreshData();
   };
 
   const handleApprovePin = async (id, newPin) => {
-    await supabase.from('musyrifs').update({ pin: newPin, pinChangeRequest: null }).eq('id', id);
+    setActionError('');
+    const { error } = await supabase.from('musyrifs').update({ pin: newPin, pinChangeRequest: null }).eq('id', id);
+    if (error) { setActionError('Gagal setujui PIN: ' + error.message); return; }
     refreshData();
   };
 
   const handleDeleteMusyrif = async (id) => {
-    await supabase.from('musyrifs').delete().eq('id', id);
+    setActionError('');
+    const { error } = await supabase.from('musyrifs').delete().eq('id', id);
+    if (error) { setActionError('Gagal hapus: ' + error.message); return; }
     refreshData();
   };
 
   const handleAddTask = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!newTask.title) return;
-    await supabase.from('tasks').insert([{ title: newTask.title, description: newTask.description, isActive: true, createdAt: Date.now() }]);
+    const { error } = await supabase.from('tasks').insert([{ title: newTask.title, description: newTask.description, isActive: true, createdAt: Date.now() }]);
+    if (error) { setActionError('Gagal tambah tugas: ' + error.message); return; }
     setNewTask({ title: '', description: '' });
     refreshData();
   };
 
   const handleDeleteTask = async (id) => {
-     await supabase.from('tasks').delete().eq('id', id);
+     setActionError('');
+     const { error } = await supabase.from('tasks').delete().eq('id', id);
+     if (error) { setActionError('Gagal hapus: ' + error.message); return; }
      refreshData();
   };
 
   const handleAddBroadcast = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!newBroadcast.title || !newBroadcast.message) return;
-    await supabase.from('broadcasts').insert([{ ...newBroadcast, timestamp: Date.now() }]);
+    const { error } = await supabase.from('broadcasts').insert([{ ...newBroadcast, timestamp: Date.now() }]);
+    if (error) { setActionError('Gagal tambah pesan: ' + error.message); return; }
     setNewBroadcast({ title: '', message: '', category: 'Informasi' });
     refreshData();
   };
 
   const handleDeleteBroadcast = async (id) => {
-    await supabase.from('broadcasts').delete().eq('id', id);
+    setActionError('');
+    const { error } = await supabase.from('broadcasts').delete().eq('id', id);
+    if (error) { setActionError('Gagal hapus: ' + error.message); return; }
     refreshData();
   }
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
+    setActionError('');
     if (!newAdmin.name || !newAdmin.pin) return;
-    await supabase.from('admins').insert([{ name: newAdmin.name, pin: newAdmin.pin }]);
+    const { error } = await supabase.from('admins').insert([{ name: newAdmin.name, pin: newAdmin.pin }]);
+    if (error) { setActionError('Gagal tambah admin: ' + error.message); return; }
     setNewAdmin({ name: '', pin: '' });
     refreshData();
   };
 
   const handleDeleteAdmin = async (id) => {
+    setActionError('');
     if (admins.length <= 1) {
-      alert("Tidak dapat menghapus admin ini. Harus ada minimal 1 admin yang tersisa!");
+      setActionError("Tidak dapat menghapus admin. Harus ada minimal 1 admin tersisa!");
       return;
     }
-    await supabase.from('admins').delete().eq('id', id);
+    const { error } = await supabase.from('admins').delete().eq('id', id);
+    if (error) { setActionError('Gagal hapus: ' + error.message); return; }
     refreshData();
   };
 
@@ -588,6 +609,14 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
           <Shield className="mr-2 text-green-700"/> Menu: {activeAdminTab.replace('_', ' ')}
         </h2>
       </div>
+
+      {/* TAMPILKAN ERROR JIKA ADA */}
+      {actionError && (
+        <div className="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm">
+          <p className="font-bold">Terjadi Kesalahan</p>
+          <p>{actionError}</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         
