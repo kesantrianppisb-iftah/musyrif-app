@@ -17,8 +17,8 @@ const ClipboardList = (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox
 
 // --- SUPABASE INITIALIZATION ---
 // GANTI KEDUA STRING DI BAWAH INI DENGAN URL DAN ANON KEY SUPABASE ANDA!
-const supabaseUrl = 'https://XXXXXXXXXXXXXXXX.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+const supabaseUrl = 'https://upsgavsszhjhbfjbcuxs.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwc2dhdnNzemhqaGJmamJjdXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyMTE0MzEsImV4cCI6MjA5Mjc4NzQzMX0.JvVihBjcN5j-0ujZXj4YNJazTNHYgRPILaQVowMTz_U';
 
 let supabase = null;
 
