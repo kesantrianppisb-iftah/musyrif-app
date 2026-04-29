@@ -480,6 +480,12 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
   const [newBroadcast, setNewBroadcast] = useState({ title: '', message: '', category: 'Informasi' });
   const [newAdmin, setNewAdmin] = useState({ name: '', pin: '' });
 
+  // State untuk Fitur Edit Musyrif & Tugas
+  const [editingMusyrifId, setEditingMusyrifId] = useState(null);
+  const [editMusyrifData, setEditMusyrifData] = useState({ name: '', pin: '' });
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTaskData, setEditTaskData] = useState({ title: '', description: '' });
+
   // Tambahkan state ini untuk menangkap error
   const [actionError, setActionError] = useState('');
 
@@ -495,6 +501,39 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
     const { error } = await supabase.from('musyrifs').insert([{ name: newMusyrif.name, pin: newMusyrif.pin }]);
     if (error) { setActionError('Gagal tambah Musyrif: ' + error.message); return; }
     setNewMusyrif({ name: '', pin: '' });
+    refreshData();
+  };
+
+// Fungsi untuk memulai edit musyrif
+  const handleStartEditMusyrif = (musyrif) => {
+    setEditingMusyrifId(musyrif.id);
+    setEditMusyrifData({ name: musyrif.name, pin: musyrif.pin });
+  };
+
+  // Fungsi untuk membatalkan edit musyrif
+  const handleCancelEditMusyrif = () => {
+    setEditingMusyrifId(null);
+    setEditMusyrifData({ name: '', pin: '' });
+  };
+
+  // Fungsi untuk menyimpan hasil edit musyrif
+  const handleSaveEditMusyrif = async (id) => {
+    setActionError('');
+    if (!editMusyrifData.name || !editMusyrifData.pin) {
+      setActionError('Nama dan PIN tidak boleh kosong.');
+      return;
+    }
+    const { error } = await supabase.from('musyrifs').update({
+      name: editMusyrifData.name,
+      pin: editMusyrifData.pin
+    }).eq('id', id);
+    
+    if (error) { 
+      setActionError('Gagal update Musyrif: ' + error.message); 
+      return; 
+    }
+    
+    setEditingMusyrifId(null);
     refreshData();
   };
 
@@ -521,6 +560,34 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
     setNewTask({ title: '', description: '' });
     refreshData();
   };
+
+// --- FUNGSI EDIT TUGAS ---
+  const handleStartEditTask = (task) => {
+    setEditingTaskId(task.id);
+    setEditTaskData({ title: task.title, description: task.description || '' });
+  };
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditTaskData({ title: '', description: '' });
+  };
+
+  const handleSaveEditTask = async (id) => {
+    setActionError('');
+    if (!editTaskData.title) {
+      setActionError('Judul tugas tidak boleh kosong.');
+      return;
+    }
+    const { error } = await supabase.from('tasks').update({
+      title: editTaskData.title,
+      description: editTaskData.description
+    }).eq('id', id);
+    
+    if (error) { setActionError('Gagal update Tugas: ' + error.message); return; }
+    setEditingTaskId(null);
+    refreshData();
+  };
+  // -------------------------
 
   const handleDeleteTask = async (id) => {
      setActionError('');
@@ -647,23 +714,52 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {musyrifs.map(m => (
-                    <tr key={m.id}>
-                      <td className="p-3 font-medium">{m.name}</td>
-                      <td className="p-3 font-mono text-gray-600">{m.pin}</td>
-                      <td className="p-3">
-                        {m.pinChangeRequest ? (
-                          <div className="flex items-center space-x-2">
-                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 text-xs rounded font-mono">{m.pinChangeRequest}</span>
-                            <button onClick={() => handleApprovePin(m.id, m.pinChangeRequest)} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Setujui</button>
-                          </div>
-                        ) : <span className="text-gray-400 text-sm">-</span>}
-                      </td>
-                      <td className="p-3 text-right">
-                        <button onClick={() => handleDeleteMusyrif(m.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Hapus</button>
-                      </td>
-                    </tr>
+                    editingMusyrifId === m.id ? (
+                      // TAMPILAN MODE EDIT
+                      <tr key={m.id} className="bg-blue-50">
+                        <td className="p-3">
+                          <input 
+                            type="text" 
+                            className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                            value={editMusyrifData.name} 
+                            onChange={(e) => setEditMusyrifData({...editMusyrifData, name: e.target.value})} 
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input 
+                            type="text" 
+                            className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono" 
+                            value={editMusyrifData.pin} 
+                            onChange={(e) => setEditMusyrifData({...editMusyrifData, pin: e.target.value})} 
+                          />
+                        </td>
+                        <td className="p-3 text-gray-400 text-sm italic">Mode Edit</td>
+                        <td className="p-3 text-right space-x-3 whitespace-nowrap">
+                          <button onClick={() => handleSaveEditMusyrif(m.id)} className="text-blue-600 hover:text-blue-800 text-sm font-bold">Simpan</button>
+                          <button onClick={handleCancelEditMusyrif} className="text-gray-500 hover:text-gray-700 text-sm font-medium">Batal</button>
+                        </td>
+                      </tr>
+                    ) : (
+                      // TAMPILAN NORMAL
+                      <tr key={m.id}>
+                        <td className="p-3 font-medium">{m.name}</td>
+                        <td className="p-3 font-mono text-gray-600">{m.pin}</td>
+                        <td className="p-3">
+                          {m.pinChangeRequest ? (
+                            <div className="flex items-center space-x-2">
+                              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 text-xs rounded font-mono">{m.pinChangeRequest}</span>
+                              <button onClick={() => handleApprovePin(m.id, m.pinChangeRequest)} className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Setujui</button>
+                            </div>
+                          ) : <span className="text-gray-400 text-sm">-</span>}
+                        </td>
+                        <td className="p-3 text-right space-x-3 whitespace-nowrap">
+                          <button onClick={() => handleStartEditMusyrif(m)} className="text-blue-500 hover:text-blue-700 text-sm font-medium">Edit</button>
+                          <button onClick={() => handleDeleteMusyrif(m.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Hapus</button>
+                        </td>
+                      </tr>
+                    )
                   ))}
-                  {musyrifs.length === 0 && <tr><td colSpan="4" className="p-3 text-center text-gray-500">Data kosong</td></tr>}
+                  {musyrifs.length === 0 && <tr><td colSpan="4" className="p-3 text-center text-gray-500">Data kosong</td></tr>}                
                 </tbody>
               </table>
             </div>
@@ -687,13 +783,29 @@ function AdminView({ activeAdminTab, tasks, musyrifs, reports, broadcasts, admin
 
             <div className="grid gap-3">
               {tasks.map((t, idx) => (
-                <div key={t.id} className="flex justify-between items-center p-4 border rounded-lg hover:shadow-sm">
-                  <div>
-                    <h4 className="font-bold text-gray-800">{idx + 1}. {t.title}</h4>
-                    {t.description && <p className="text-sm text-gray-500">{t.description}</p>}
+                editingTaskId === t.id ? (
+                  <div key={t.id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 border border-blue-300 bg-blue-50 rounded-lg shadow-sm gap-3">
+                    <div className="flex-1 w-full space-y-2">
+                      <input type="text" className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold" value={editTaskData.title} onChange={(e) => setEditTaskData({...editTaskData, title: e.target.value})} placeholder="Judul Tugas" />
+                      <input type="text" className="w-full px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" value={editTaskData.description} onChange={(e) => setEditTaskData({...editTaskData, description: e.target.value})} placeholder="Deskripsi Tugas" />
+                    </div>
+                    <div className="flex space-x-3 whitespace-nowrap">
+                       <button onClick={() => handleSaveEditTask(t.id)} className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700">Simpan</button>
+                       <button onClick={handleCancelEditTask} className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300">Batal</button>
+                    </div>
                   </div>
-                  <button onClick={() => handleDeleteTask(t.id)} className="text-red-500 p-2 hover:bg-red-50 rounded"><XCircle className="w-5 h-5"/></button>
-                </div>
+                ) : (
+                  <div key={t.id} className="flex justify-between items-center p-4 border rounded-lg hover:shadow-sm">
+                    <div>
+                      <h4 className="font-bold text-gray-800">{idx + 1}. {t.title}</h4>
+                      {t.description && <p className="text-sm text-gray-500">{t.description}</p>}
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <button onClick={() => handleStartEditTask(t)} className="text-blue-500 p-2 hover:bg-blue-50 rounded text-sm font-medium">Edit</button>
+                      <button onClick={() => handleDeleteTask(t.id)} className="text-red-500 p-2 hover:bg-red-50 rounded"><XCircle className="w-5 h-5"/></button>
+                    </div>
+                  </div>
+                )
               ))}
               {tasks.length === 0 && <p className="text-center text-gray-500">Belum ada tugas yang ditambahkan.</p>}
             </div>
